@@ -14,7 +14,7 @@ This project is an ongoing engineering effort to design a comprehensive, scalabl
 Future development is planned for:
 - **Line C:** Mixed/unknown chemistries — pyrometallurgy + hybrid
 - **Line D:** Damaged/swollen batteries — inert atmosphere pyro-hydro hybrid
-- **Improvements to Line A and Line B code
+- **Improvements to Line A and Line B code**
 
 ---
 
