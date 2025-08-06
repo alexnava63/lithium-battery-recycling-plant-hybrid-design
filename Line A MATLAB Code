@@ -1,0 +1,183 @@
+%% LIB Leaching Simulation Using Literature-Based Kinetics
+
+clc; clear;
+
+% Constants 
+R = 8.314; T_C = 80; T_K = T_C + 273.15;
+tau = 270;  % Residence time [min]
+
+% Reagent Concentrations (mol/m3)
+H2SO4_conc = 2000;
+H2O2_conc  = 250;
+
+% Slurry
+Cp = 4.2; slurry_kg_hr = 1300; %Estimated Cp
+slurry_g_s = slurry_kg_hr * 1000 / 3600;
+solids_frac = 0.15; reactive_g_s = slurry_g_s * solids_frac;
+
+% Battery Feed Composition
+z.LCO = 0.3; z.NMC = 0.5; z.NCA = 0.2;
+metals.LCO = struct('Li', 0.074, 'Co', 0.60);
+metals.NMC = struct('Li', 0.07, 'Co', 0.18, 'Ni', 0.33, 'Mn', 0.18);
+metals.NCA = struct('Li', 0.061, 'Co', 0.15, 'Ni', 0.80);
+MW = struct('Li', 6.94, 'Co', 58.93, 'Ni', 58.69, 'Mn', 54.94);
+battery_types = {'LCO','NMC','NCA'};
+elements_all = {'Li','Co','Ni','Mn'};
+total_feed_kg_hr = 1000;
+
+% Expected Maximum Recoveries
+Max_Recovery = struct('Li', 0.95, 'Co', 0.97, 'Ni', 0.96, 'Mn', 0.93);
+Target = struct('Li', 90, 'Co', 95, 'Ni', 95, 'Mn', 90);
+
+% Initialize Accumulators
+mass_hr = struct(); mol_hr = struct(); rec_mol = struct();
+for i = 1:numel(elements_all)
+    e = elements_all{i}; mass_hr.(e) = 0; mol_hr.(e) = 0; rec_mol.(e) = 0;
+end
+
+% Kinetic Parameters
+params.LCO.k_fit = struct('Li', 0.06, 'Co', 0.055);
+params.LCO.n_fit = struct('Li', 1.3, 'Co', 1.2);
+params.LCO.Ea    = struct('Li', 8000, 'Co', 5100);
+params.LCO.T_ref = 333.15;
+
+params.NMC.k = struct('Li', 0.0044, 'Co', 0.0041, 'Ni', 0.035, 'Mn', 0.10);
+params.NMC.Ea = struct('Li', 20100, 'Co', 29900, 'Ni', 34300, 'Mn', 20800);
+params.NMC.n  = struct('Li', 1.3, 'Co', 1.4, 'Ni', 1.25, 'Mn', 1.1);
+params.NMC.T_ref = 333.15;
+
+params.NCA.k = struct('Li', 0.01, 'Co', 0.01, 'Ni', 0.05);
+params.NCA.Ea = struct('Li', 7800, 'Co', 5100, 'Ni', 5600);
+params.NCA.n  = struct('Li', 1.2, 'Co', 1.3, 'Ni', 1.2);
+params.NCA.T_ref = 298.15;
+
+% Reaction Enthalpies [kJ/mol]
+dH = struct('Li', -90, 'Co', -200, 'Ni', -120, 'Mn', -115);
+
+% Main Simulation
+Q_rxn_kJ_hr = 0;
+for i = 1:length(battery_types)
+    b = battery_types{i};
+    elems = fieldnames(metals.(b));
+    for j = 1:length(elems)
+        m = elems{j};
+        mass_b = total_feed_kg_hr * 1000 * z.(b) * metals.(b).(m);
+        mol_b = mass_b / MW.(m);
+        mass_hr.(m) = mass_hr.(m) + mass_b;
+        mol_hr.(m) = mol_hr.(m) + mol_b;
+
+        T_ref_b = params.(b).T_ref;
+        X = recovery_literature(b, m, tau, T_K, T_ref_b, R, params, H2SO4_conc, H2O2_conc);
+
+        if isfield(Max_Recovery, m)
+            X = min(X, Max_Recovery.(m));
+        end
+
+        rec_mol.(m) = rec_mol.(m) + mol_b * X;
+
+        if isfield(dH, m)
+            Q_rxn_kJ_hr = Q_rxn_kJ_hr + mol_b * X * dH.(m);
+        end
+    end
+end
+
+% Energy Calculations
+Q_rxn_J_s = Q_rxn_kJ_hr * 1000 / 3600;
+Q_sensible_J_s = (T_K - 333.15) * slurry_g_s * Cp;
+Q_net_J_s = Q_rxn_J_s + Q_sensible_J_s;
+Q_heater = max(Q_net_J_s, 0) / 1000;
+
+% Output Results
+fprintf('\n==== LIB Leaching Simulation Using Literature Kinetics with H2SO4/H2O2 Scaling ====\n');
+fprintf('T = %.1f°C | τ = %.0f min | Q_rxn = %.2f kW | Q_sensible = %.2f kW | Q_heater = %.2f kW\n\n', ...
+    T_C, tau, Q_rxn_J_s/1000, Q_sensible_J_s/1000, Q_heater);
+
+fprintf('%-10s %-15s %-20s %-18s %-15s\n', 'Metal', 'Feed_kg_hr', 'Recovered_kg_hr', 'Actual_%', 'Target_%');
+fprintf('%s\n', repmat('-', 1, 80));
+for i = 1:numel(elements_all)
+    m = elements_all{i};
+    feed_kg = mass_hr.(m)/1000;
+    rec_kg = rec_mol.(m)*MW.(m)/1000;
+    actual_pct = 100 * rec_kg / feed_kg;
+    fprintf('%-10s %-15.2f %-20.4f %-18.2f %-15.0f\n', m, feed_kg, rec_kg, actual_pct, Target.(m));
+end
+
+% Graph: Metal Recovery vs Residence Time
+tau_range = linspace(0, 300, 300);
+colors = lines(numel(elements_all));
+figure; hold on; grid on;
+
+for i = 1:numel(elements_all)
+    m = elements_all{i};
+    mol_feed = zeros(size(tau_range));
+    mol_rec = zeros(size(tau_range));
+
+    for ti = 1:length(tau_range)
+        t_step = tau_range(ti);
+        total_mol_feed = 0;
+        total_mol_rec = 0;
+
+        for k = 1:length(battery_types)
+            b = battery_types{k};
+            if isfield(metals.(b), m)
+                mass_b = total_feed_kg_hr * 1000 * z.(b) * metals.(b).(m);
+                mol_b = mass_b / MW.(m);
+                T_ref = params.(b).T_ref;
+                X_temp = recovery_literature(b, m, t_step, T_K, T_ref, R, params, H2SO4_conc, H2O2_conc);
+                if isfield(Max_Recovery, m)
+                    X_temp = min(X_temp, Max_Recovery.(m));
+                end
+                total_mol_feed = total_mol_feed + mol_b;
+                total_mol_rec  = total_mol_rec + mol_b * X_temp;
+            end
+        end
+
+        mol_feed(ti) = total_mol_feed;
+        mol_rec(ti) = total_mol_rec;
+    end
+
+    recovery_pct = 100 * mol_rec ./ mol_feed;
+    plot(tau_range, recovery_pct, 'DisplayName', m, 'LineWidth', 2, 'Color', colors(i,:));
+end
+
+% Plot vertical marker at simulation τ
+xline(tau, '--k', '270 min', 'LabelOrientation', 'horizontal', ...
+       'LabelHorizontalAlignment','left','FontSize',10);
+
+xlabel('Residence Time (min)', 'FontSize', 12);
+ylabel('Recovery (%)', 'FontSize', 12);
+title('Metal Recovery vs Residence Time', 'FontSize', 14);
+legend('Location','southeast');
+ylim([0 100]); xlim([0 max(tau_range)]);
+hold off;
+
+% Recovery Function
+function X = recovery_literature(batt, metal, t, T_K, T_ref, R, p, H2SO4, H2O2)
+    if strcmp(batt, 'LCO')
+        if isfield(p.LCO.k_fit, metal)
+            k_base = p.LCO.k_fit.(metal);
+            n = p.LCO.n_fit.(metal);
+            Ea = p.LCO.Ea.(metal);
+            k = k_base * exp(-Ea/R * (1/T_K - 1/T_ref));
+            if strcmp(metal, 'Li')
+                k = k * (H2SO4/1000)^(1/3) * (H2O2/100)^2;
+            elseif strcmp(metal, 'Co')
+                k = k * (H2SO4/1000)^(2/3) * (H2O2/100)^2;
+            end
+            X = 1 - exp(-(k * t)^n);
+        else
+            X = 0;
+        end
+    else
+        if isfield(p.(batt).k, metal)
+            k_ref = p.(batt).k.(metal);
+            Ea = p.(batt).Ea.(metal);
+            n = p.(batt).n.(metal);
+            k = k_ref * exp(-Ea/R * (1/T_K - 1/T_ref));
+            X = 1 - exp(-(k * t)^n);
+        else
+            X = 0;
+        end
+    end
+    X = min(X, 0.9999);
+end
