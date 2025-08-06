@@ -1,0 +1,133 @@
+%% LFP Leaching Simulation with Avrami Kinetics and Continuous H2O2 Feed (CSTR)
+clc; clear;
+
+% Constants and Physical Parameters 
+R = 8.314;                         % J/mol·K
+Cp_slurry = 3.9;                  % J/g·K
+slurry_mass_kg = 1000;
+slurry_mass_g = slurry_mass_kg * 1000;
+
+solids_frac = 0.15;
+LFP_mass_g = slurry_mass_kg * solids_frac * 1000;
+
+MW_Li = 6.94;
+Li_wt_frac_LFP = MW_Li / 157.75;
+Li_mass_g = LFP_mass_g * Li_wt_frac_LFP;
+Li_mol_total = Li_mass_g / MW_Li;
+
+% Initial Conditions
+T0_C = 25;
+T0_K = T0_C + 273.15;
+Xb0 = 0;
+
+% Reactor and H2O2 Feed Setup
+V_liquid_L = slurry_mass_kg * (1 - solids_frac);   % L
+H2O2_feed_conc = 1.1;          % mol/L
+CO2_pres = 2;                  % atm
+Xb_max = 0.97;
+
+% CSTR Design
+V_CSTR = V_liquid_L;           % Assume same volume
+res_time_min = 20;             % Residence time
+F_in = V_CSTR / res_time_min;  % L/min
+
+% Kinetics Parameters
+A = 72; Ea = 11000; m = 1.0; n = 0.65; p = 0.06;
+dH_rxn = -90000; % J/mol Li extracted
+
+% Time Setup
+tspan = linspace(0, 20, 300);  % 60 min
+y0 = [Xb0; T0_K; H2O2_feed_conc];  % [Xb, T_K, H2O2_conc]
+
+% Solve ODEs 
+[t, y] = ode45(@(t, y) reactionODE(t, y, A, Ea, R, m, n, p, ...
+    CO2_pres, dH_rxn, Li_mol_total, slurry_mass_g, Cp_slurry, ...
+    Xb_max, F_in, H2O2_feed_conc, V_CSTR), ...
+    tspan, y0);
+
+% Extract Results
+Xb = min(y(:,1), Xb_max);
+T_K = y(:,2);
+T_C = T_K - 273.15;
+H2O2_conc = max(y(:,3), 0);
+
+% Final Metrics
+Xb_final = Xb(end);
+Li_extracted_mol = Xb_final * Li_mol_total;
+Li_extracted_g = Li_extracted_mol * MW_Li;
+total_heat_kJ = -dH_rxn * Li_extracted_mol / 1000;
+avg_rate = (Xb_final - Xb(1)) * 100 / (t(end) - t(1));
+
+% CSTR Volume Sizing Output
+slurry_feed_kg_per_hr = 1000;
+slurry_feed_m3_per_min = slurry_feed_kg_per_hr / 60 / 1000;
+CSTR_volume_m3 = slurry_feed_m3_per_min * res_time_min;
+CSTR_volume_L = CSTR_volume_m3 * 1000;
+
+% Display Output 
+fprintf('LFP Leaching Simulation Results \n');
+fprintf('Final Li Extraction: %.2f%%\n', Xb_final * 100);
+fprintf('Final Temp: %.2f °C\n', T_C(end));
+fprintf('Li Extracted: %.2f mol (%.2f g)\n', Li_extracted_mol, Li_extracted_g);
+fprintf('Heat Released: %.2f kJ\n', total_heat_kJ);
+fprintf('Average Rate: %.4f %%/min\n', avg_rate);
+fprintf('Final H2O2 Conc: %.4f mol/L\n', H2O2_conc(end));
+fprintf('\n--- CSTR Reactor Sizing ---\n');
+fprintf('Slurry Feed Rate: %.0f kg/hr\n', slurry_feed_kg_per_hr);
+fprintf('Residence Time: %.2f min\n', res_time_min);
+fprintf('Required CSTR Volume: %.2f L (%.3f m³)\n', CSTR_volume_L, CSTR_volume_m3);
+
+% Plotting 
+figure;
+
+subplot(3,1,1);
+plot(t, Xb * 100, 'b-', 'LineWidth', 2); hold on;
+yline(Xb_max * 100, 'k--', 'Max Extraction');
+xlabel('Time (min)'); ylabel('Li Extraction (%)');
+title('LFP Delithiation - Extraction vs Time'); grid on;
+
+subplot(3,1,2);
+plot(t, T_C, 'r-', 'LineWidth', 2);
+xlabel('Time (min)'); ylabel('Temperature (°C)');
+title('Reactor Temperature'); grid on;
+
+subplot(3,1,3);
+plot(t, H2O2_conc, 'g-', 'LineWidth', 2);
+xlabel('Time (min)'); ylabel('[H_2O_2] (mol/L)');
+title('H_2O_2 Concentration vs Time'); grid on;
+
+%% --- ODE Function with H2O2 Feed ---
+function dydt = reactionODE(t, y, A, Ea, R, m, n, p, ...
+    CO2_pres, dH_rxn, Li_mol_total, slurry_mass_g, Cp_slurry, ...
+    Xb_max, F_in, H2O2_in, V)
+
+    % Unpack state
+    Xb = y(1);
+    T = max(y(2), 273);
+    H2O2 = max(y(3), 0);
+
+    % Rate constant
+    Ka = A * exp(-Ea / (R * T)) * H2O2^n * CO2_pres^p;
+
+    % Avrami rate
+    if Xb == 0
+        dXb_dt = Ka * m;
+    else
+        ln_term = -log(1 - Xb);
+        dXb_dt = Ka * m * ln_term^((m - 1)/m) * (1 - Xb);
+    end
+
+    dXb_dt = min(dXb_dt, (Xb_max - Xb) / 0.01);  % prevent overshoot
+
+    % Molar reaction rate (mol/min)
+    r_Li = dXb_dt * Li_mol_total / V;       % mol/L·min
+
+    % H2O2 mass balance with feed
+    dH2O2_dt = (F_in / V) * (H2O2_in - H2O2) - r_Li;
+
+    % Energy balance
+    Q_rxn = -dH_rxn * r_Li;  % J/L·min
+    dT_dt = Q_rxn / (slurry_mass_g / V * Cp_slurry);
+
+    dydt = [dXb_dt; dT_dt; dH2O2_dt];
+end
