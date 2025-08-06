@@ -1,131 +1,105 @@
-# ♻️ Lithium-Ion Battery Recycling Plant Design
+# Lithium-Ion Battery Recycling Plant Design (Ongoing Project)
 
-A comprehensive, modular plant design for recycling lithium-ion batteries using hydrometallurgy, pyrometallurgy, and advanced separation techniques. Includes kinetic modeling, green chemistry, and process simulation tools for recovering Li, Co, Ni, Mn, and Cu.
-
----
-
-## 📘 Project Overview
-
-This project presents a full-scale engineering design for a lithium-ion battery (LIB) recycling facility. As battery use surges in electric vehicles and energy storage, recycling becomes essential to reduce environmental impact, prevent unethical mining, and close the loop on critical materials.
-
-The plant integrates **hydrometallurgical**, **pyrometallurgical**, and **hybrid processes** to treat a wide variety of LIB chemistries — including LFP, NMC, LCO, and NCA — even in mixed, damaged, or unsorted conditions.
+**A modular lithium-ion battery recycling plant combining hydrometallurgy, pyrometallurgy, and advanced separation. Line A and Line B have been fully modeled and simulated. Lines C and D are currently under development.**
 
 ---
 
-## 🎯 Objectives
+## Project Overview
 
-- Recover >90% of high-value materials (Li, Co, Ni, Mn, Cu)
-- Minimize emissions and effluent through green process design
-- Avoid reliance on virgin or unethical cobalt mining
-- Enable circular economy for LIBs
-- Validate process feasibility via kinetic models and simulations
+This project is an ongoing engineering effort to design a comprehensive, scalable, and sustainable lithium-ion battery (LIB) recycling facility. It includes completed modeling for:
 
----
+- **Line A:** Cobalt-rich batteries (LCO, NMC, NCA) — hydrometallurgy
+- **Line B:** Iron-based batteries (LFP) — green hydrometallurgy with CO₂ and H₂O₂
 
-## ⚙️ Technology Stack
-
-### 🧩 Shared Front-End Processing
-- **Sorting** by chemistry
-- **Automated Discharging**
-- **Shredding** under cooling
-- **Separation** of black mass, casings, and foils
+Future development is planned for:
+- **Line C:** Mixed/unknown chemistries — pyrometallurgy + hybrid
+- **Line D:** Damaged/swollen batteries — inert atmosphere pyro-hydro hybrid
+- **Improvements to Line A and Line B code
 
 ---
 
-### 🧪 Line A: Cobalt-Rich Batteries (LCO, NMC, NCA)
-- Method: Hydrometallurgy  
-- Key Features:
-  - CSTR leaching (H₂SO₄ + H₂O₂)
-  - Solvent extraction (Co, Ni, Mn)
-  - Lithium crystallization  
-- Simulated in **PRO/II**
+## Current Status
+
+| Line | Chemistry Type         | Methodology         | Status       | Code/Model Available |
+|------|------------------------|---------------------|--------------|----------------------|
+| A    | LCO, NMC, NCA          | Hydrometallurgy     | Completed    | `Line A MATLAB Code` |
+| B    | LFP                    | Green Hydromet      | Completed    | `Line B MATLAB Code` |
+| C    | Mixed chemistries      | Pyrometallurgy +    | In progress  | Not yet implemented  |
+| D    | Damaged/swollen LIBs   | Inert Pyro + Hydro  | In progress  | Not yet implemented  |
 
 ---
 
-### 🔋 Line B: LFP Batteries (Fe-Based)
-- Method: Green Hydrometallurgy  
-- Key Features:
-  - Delithiation using **CO₂ + H₂O₂**
-  - Low-temperature, low-energy process
-  - Avrami kinetics (Ea ≈ 13.9–15.7 kJ/mol):contentReference[oaicite:0]{index=0}
-  - FePO₄ product suitable for cathode reuse
+## Key Deliverables
+
+- MATLAB simulations for Line A and Line B, with kinetic modeling
+- Integrated kinetic models for:
+  - **LiCoO₂** leaching (shrinking-core model) [`LiCoO2_kinetics.pdf`]
+  - **NCA** kinetics [`NCA_kinetics_3.pdf`]
+  - **LFP** green delithiation with Avrami modeling [`larouche-et-al-2023-kinetics-mech...`]
+  - **Ternary LIB separation and recovery** [`Separation and recovery of nickel...`]
+- MIT License for open use
 
 ---
 
-### 🔥 Line C: Mixed/Unknown Chemistries
-- Method: Pyrometallurgy + optional hydromet  
-- Key Features:
-  - Plasma/electric arc smelting
-  - Slag leaching for Li
-  - Electrorefining for Ni/Co
+## Methods & Approaches
+
+### Line A (Hydromet for Co-Rich Batteries)
+- **Chemistries**: LCO, NMC, NCA
+- **Reagents**: H₂SO₄, H₂O₂
+- **Simulation**: MATLAB CSTR model
+- **Kinetics**: Shrinking core, crust-limited diffusion
+
+### Line B (Green Hydromet for LFP)
+- **Chemistry**: LiFePO₄
+- **Reagents**: CO₂ + H₂O₂
+- **Model**: Avrami-based nucleation/growth
+- **Simulation**: MATLAB batch reactor code
 
 ---
 
-### 🧯 Line D: Damaged/Swollen Batteries
-- Method: Inert Pyro + Hydro Hybrid  
-- Features:
-  - Sealed nitrogen handling
-  - Real-time off-gas monitoring
-  - Safety-first sealed chamber design
+## Next Steps
+
+- [ ] Develop and simulate **Line C** (mixed battery stream)
+- [ ] Implement **Line D** process for damaged LIBs under inert conditions
+- [ ] Perform lifecycle assessment and environmental modeling
+- [ ] Visualize flowsheets and generate block flow diagrams
+- [ ] Invite collaboration and peer review
 
 ---
 
-## 📈 Technical Highlights
-
-- **Kinetics**:
-  - LCO: Shrinking core model (gas crust resistance):contentReference[oaicite:1]{index=1}
-  - NMC: Dual control (diffusion + surface reaction):contentReference[oaicite:2]{index=2}
-  - LFP: Avrami growth model (n=1), fast solid-state transformation:contentReference[oaicite:3]{index=3}
-
-- **Simulation**: PRO/II used for Line A; MATLAB modeling for kinetics
-
-- **Green Chemistry**:  
-  - CO₂ buffering to reduce acid waste  
-  - Solvent reuse (e.g., DMG, P204, C272)  
-  - Lithium carbonate crystallization
-
----
-
-## 📂 Repository Structure
+## Repository Contents
 
 | File | Description |
 |------|-------------|
-| `Executive_Summary.pdf` | Complete design summary |
-| `Kinetics_LCO.pdf` | Leaching kinetics for LiCoO₂ (acid-reductive) |
-| `Kinetics_LFP.pdf` | Green delithiation of LFP using CO₂ + H₂O₂ |
-| `Kinetics_NCA.pdf` | Kinetic modeling of NCA leaching |
-| `Ternary_Separation.pdf` | Solvent extraction & selective recovery from NMC |
-| `README.md` | Project overview (this file) |
-| `LICENSE` | MIT License for reuse |
+| `LICENSE` | MIT License file |
+| `README.md` | This project overview |
+| `LiCoO2_kinetics.pdf` | Leaching kinetics and modeling of LiCoO₂ |
+| `NCA_kinetics_3.pdf` | Kinetics of NCA leaching |
+| `larouche-et-al-2023-kinetics-mech...` | Green delithiation modeling of LFP |
+| `Separation and recovery of nickel...` | Solvent extraction & precipitation for NMC |
+| `Line A MATLAB Code` | Reactor model for Co-rich batteries |
+| `Line B MATLAB Code` | Green hydromet model for LFP |
 
 ---
 
-## 🤝 Collaboration & Use
-
-You're welcome to:
-- Use this design for research or educational purposes
-- Reference kinetic models or flowsheets
-- Build upon this to create your own lab-scale or pilot-scale systems
-- Contribute insights, modeling upgrades, or data
-
-📬 **We welcome collaboration from**:
-- Battery recyclers
-- Chemical & process engineers
-- Sustainability researchers
-- Circular economy advocates
-
----
-
-## 📜 License
+## License
 
 This project is released under the **MIT License**.  
-Documents (PDFs) and models are free to use, modify, and redistribute with attribution.
-
-> See [LICENSE](./LICENSE) for full details.
+You are free to use, adapt, and build on this work for research, education, or commercial applications with attribution.
 
 ---
 
-## 🔗 Citation
+## Contributions Welcome
 
-If you use this project in academic or technical work, please cite it as:
+This is an evolving project. If you're interested in:
+- Battery recycling process modeling
+- Hydromet or pyrometallurgical systems
+- Emissions control and sustainability
+- Academic-industry collaboration
+
+Feel free to open an issue or submit a pull request. Let’s accelerate ethical, circular, and sustainable battery recycling together.
+
+
+
+
 
